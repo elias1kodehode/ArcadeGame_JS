@@ -16,27 +16,53 @@ const arm = {
     length: 30,
     thickness: 10,
   },
+  paddle: {
+    length: 160,
+    thickness: 14,
+  },
 };
 
 const shoulder = {
   x: canvas.width / 2,
-  y: canvas.height / 1.3,
+  y: canvas.height / 1.1,
   radius: 20,
   angle: radians(45),
+  angularVelocity: 0,
 };
 const elbow = {
   x: 0,
   y: 0,
   radius: 20,
   angle: radians(-90),
+  angularVelocity: 0,
 };
 const wrist = {
   x: 0,
   y: 0,
   radius: 15,
-  angle: 0,
+  angle: radians(30),
+  angularVelocity: 0,
+};
+const hand = {
+  x: 0,
+  y: 0,
+};
+const paddleRight = {
+  x: 0,
+  y: 0,
+};
+const paddleLeft = {
+  x: 0,
+  y: 0,
 };
 
+let ball = {
+  x: 200,
+  y: 400,
+  radius: 20,
+  vx: 0,
+  vy: 0,
+};
 let timestamp = 0;
 let lastTime = 0;
 function gameloop(timestamp) {
@@ -49,9 +75,13 @@ function gameloop(timestamp) {
     dt = 0;
   }
   lastTime = timestamp;
-  updateControls(dt);
-  updateArm();
+  updateControls();
+  updateArm(dt);
+  handleBallBoundaries(ball);
+  updateBall(ball, dt);
+  collisionBallPaddle(ball);
   drawArm();
+  drawBall(ball);
 
   requestAnimationFrame(gameloop);
 }
@@ -63,7 +93,7 @@ function calculateEndpoint(start, length, angle) {
   return { x, y };
 }
 
-function updateArm() {
+function updateArm(dt) {
   ({ x: elbow.x, y: elbow.y } = calculateEndpoint(
     shoulder,
     arm.overArm.length,
@@ -74,6 +104,24 @@ function updateArm() {
     arm.underArm.length,
     shoulder.angle + elbow.angle,
   ));
+  ({ x: hand.x, y: hand.y } = calculateEndpoint(
+    wrist,
+    arm.hand.length,
+    shoulder.angle + elbow.angle + wrist.angle,
+  ));
+  ({ x: paddleRight.x, y: paddleRight.y } = calculateEndpoint(
+    hand,
+    arm.paddle.length / 2,
+    shoulder.angle + elbow.angle + wrist.angle + Math.PI / 2,
+  ));
+  ({ x: paddleLeft.x, y: paddleLeft.y } = calculateEndpoint(
+    hand,
+    arm.paddle.length / 2,
+    shoulder.angle + elbow.angle + wrist.angle - Math.PI / 2,
+  ));
+  shoulder.angle += shoulder.angularVelocity * dt;
+  elbow.angle += elbow.angularVelocity * dt;
+  wrist.angle += wrist.angularVelocity * dt;
 }
 
 function drawArmSegment(start, end, thickness) {
@@ -116,25 +164,27 @@ function drawJoints() {
 function drawArm() {
   drawArmSegment(shoulder, elbow, arm.overArm.thickness);
   drawArmSegment(elbow, wrist, arm.underArm.thickness);
+  drawArmSegment(wrist, hand, arm.hand.thickness);
+  drawArmSegment(hand, paddleRight, arm.paddle.thickness);
+  drawArmSegment(hand, paddleLeft, arm.paddle.thickness);
   drawJoints();
 }
 
-function updateControls(dt) {
+function updateControls() {
   const rotationSpeed = Math.PI;
 
-  if (pressedA === true) {
-    shoulder.angle -= rotationSpeed * dt;
-  }
-  if (pressedJ === true) {
-    shoulder.angle += rotationSpeed * dt;
-  }
-
-  if (pressedS === true) {
-    elbow.angle -= rotationSpeed * dt;
-  }
-  if (pressedK === true) {
-    elbow.angle += rotationSpeed * dt;
-  }
+  // if (pressedA && pressedL) {
+  //   shoulder.angularVelocity = 0;
+  // } else if (pressedA === true) {
+  //   shoulder.angularVelocity = -rotationSpeed;
+  // } else if (pressedL === true) {
+  //   shoulder.angularVelocity = +rotationSpeed;
+  // } else {
+  //   shoulder.angularVelocity = 0;
+  // }
+  shoulder.angularVelocity = rotationSpeed * (pressedL - pressedA);
+  elbow.angularVelocity = rotationSpeed * (pressedK - pressedS);
+  wrist.angularVelocity = rotationSpeed * (pressedJ - pressedD);
 }
 
 let pressedA = false;
@@ -160,9 +210,9 @@ document.addEventListener("keydown", (event) => {
     pressedD = true;
   }
 
-  if (event.key === "j") {
+  if (event.key === "l") {
     console.log(shoulder.angle);
-    pressedJ = true;
+    pressedL = true;
   }
 
   if (event.key === "k") {
@@ -170,9 +220,9 @@ document.addEventListener("keydown", (event) => {
     pressedK = true;
   }
 
-  if (event.key === "l") {
+  if (event.key === "j") {
     console.log(wrist.angle);
-    pressedL = true;
+    pressedJ = true;
   }
 });
 document.addEventListener("keyup", (event) => {
@@ -191,9 +241,9 @@ document.addEventListener("keyup", (event) => {
     pressedD = false;
   }
 
-  if (event.key === "j") {
+  if (event.key === "l") {
     console.log(shoulder.angle);
-    pressedJ = false;
+    pressedL = false;
   }
 
   if (event.key === "k") {
@@ -201,22 +251,118 @@ document.addEventListener("keyup", (event) => {
     pressedK = false;
   }
 
-  if (event.key === "l") {
+  if (event.key === "j") {
     console.log(wrist.angle);
-    pressedL = false;
+    pressedJ = false;
   }
 });
 
+function calculatePointVelocity(point) {
+  const pxShoulder = -(point.y - shoulder.y);
+  const pyShoulder = point.x - shoulder.x;
+  const pxElbow = -(point.y - elbow.y);
+  const pyElbow = point.x - elbow.x;
+  const pxWrist = -(point.y - wrist.y);
+  const pyWrist = point.x - wrist.x;
+
+  const vx =
+    shoulder.angularVelocity * pxShoulder +
+    elbow.angularVelocity * pxElbow +
+    wrist.angularVelocity * pxWrist;
+
+  const vy =
+    shoulder.angularVelocity * pyShoulder +
+    elbow.angularVelocity * pyElbow +
+    wrist.angularVelocity * pyWrist;
+  return { vx, vy };
+}
+// Collision
+function collisionBallPaddle(ball) {
+  const abX = paddleRight.x - paddleLeft.x;
+  const abY = paddleRight.y - paddleLeft.y;
+  const apX = ball.x - paddleLeft.x;
+  const apY = ball.y - paddleLeft.y;
+  const dot = abX * apX + abY * apY;
+  const t = dot / (abX ** 2 + abY ** 2);
+  const clamped = Math.max(0, Math.min(t, 1));
+  const closestX = paddleLeft.x + clamped * abX;
+  const closestY = paddleLeft.y + clamped * abY;
+  const collisionThreshold = ball.radius + arm.paddle.thickness / 2;
+  const distance = Math.hypot(closestX - ball.x, closestY - ball.y);
+  let nx, ny;
+  const displacementVectorX = ball.x - closestX;
+  const displacementVectorY = ball.y - closestY;
+  if (distance === 0) {
+    const newDistance = Math.hypot(abX, abY);
+    nx = -abY / newDistance;
+    ny = abX / newDistance;
+  } else if (distance > 0) {
+    nx = displacementVectorX / distance;
+    ny = displacementVectorY / distance;
+  }
+  if (distance <= collisionThreshold) {
+    const { vx: paddleVx, vy: paddleVy } = calculatePointVelocity({
+      x: closestX,
+      y: closestY,
+    });
+
+    const relativeVelocityX = ball.vx - paddleVx;
+    const relativeVelocityY = ball.vy - paddleVy;
+
+    const collisionDot = nx * relativeVelocityX + ny * relativeVelocityY;
+    if (collisionDot < 0) {
+      //SLAp
+
+      const j = -(1 + 1) * collisionDot;
+      ball.vx += j * nx;
+      ball.vy += j * ny;
+    }
+    const penetration = collisionThreshold - distance;
+    if (penetration > 0) {
+      ball.x += penetration * nx;
+      ball.y += penetration * ny;
+    }
+  }
+}
+
 // BALL
+
 function createBall({ x, y, radius, vx = 0, vy = 0, z = 0 }) {
   return { x, y, radius, vx, vy, z };
 }
-function updateBall(ball, dt) {
-  const x0 = ball.x;
-  const y0 = ball.y;
 
-  ball.x = x0 + ball.vx * dt;
-  ball.y = y0 + ball.vy * dt;
+function handleBallBoundaries(ball) {
+  if (ball.x + ball.radius > canvas.width) {
+    ball.x = canvas.width - ball.radius;
+    ball.vx = -ball.vx;
+  }
+  if (ball.x - ball.radius < 0) {
+    ball.x = ball.radius;
+    ball.vx = -ball.vx;
+  }
+  if (ball.y - ball.radius < 0) {
+    ball.y = ball.radius;
+    ball.vy = -ball.vy;
+  }
+  if (ball.y + ball.radius > canvas.height) {
+    //lose life, if(life === 0) { game over}
+    ball.x = 200;
+    ball.y = 400;
+    ball.vx = 0;
+    ball.vy = 0;
+  }
 }
+function drawBall(ball) {
+  ctx.beginPath();
+  ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.fill();
+}
+function updateBall(ball, dt) {
+  // const x0 = ball.x;
+  // const y0 = ball.y;
 
+  ball.x += ball.vx * dt;
+  ball.y += ball.vy * dt;
+}
 requestAnimationFrame(gameloop);
