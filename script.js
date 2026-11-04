@@ -1,8 +1,13 @@
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
+const attempt = document.getElementById("attempt");
+const recordAttempts = document.getElementById("record");
+
 canvas.height = 720;
 canvas.width = 480;
-
+const gravity = 100;
+let gameState = "playing";
+let record = Infinity;
 const arm = {
   overArm: {
     length: 80,
@@ -28,6 +33,9 @@ const shoulder = {
   radius: 20,
   angle: radians(45),
   angularVelocity: 0,
+  angularAcceleration: 15,
+  maxAngularVelocity: Math.PI,
+  angularDeceleration: 25,
 };
 const elbow = {
   x: 0,
@@ -35,6 +43,9 @@ const elbow = {
   radius: 20,
   angle: radians(-90),
   angularVelocity: 0,
+  angularAcceleration: 15,
+  maxAngularVelocity: Math.PI,
+  angularDeceleration: 25,
 };
 const wrist = {
   x: 0,
@@ -42,6 +53,9 @@ const wrist = {
   radius: 15,
   angle: radians(30),
   angularVelocity: 0,
+  angularAcceleration: 15,
+  maxAngularVelocity: Math.PI,
+  angularDeceleration: 25,
 };
 const hand = {
   x: 0,
@@ -160,17 +174,19 @@ function updateBrickCollisions(ball) {
     }
   }
 }
-generateBricks(10, 5);
+generateBricks(1, 1);
 let ball = {
   x: shoulder.x,
-  y: 500,
+  y: 200,
   radius: 20,
   vx: 0,
   vy: 0,
 };
+
 let timestamp = 0;
 let lastTime = 0;
 let maxSpeed = 350;
+
 function gameloop(timestamp) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   if (!lastTime) {
@@ -181,18 +197,51 @@ function gameloop(timestamp) {
     dt = 0;
   }
   lastTime = timestamp;
-  updateBrickCollisions(ball);
-  updateControls();
-  updateArm(dt);
-  handleBallBoundaries(ball);
-  updateBall(ball, dt);
-  collisionBallPaddle(ball);
+  if (bricks.length === 0) {
+    gameState = "gameOver";
+  }
+  if (gameState === "gameOver") {
+    alert("Congratulations! You made it in " + attemptCounter + " attempts!");
+    let pressedA = false;
+    let pressedS = false;
+    let pressedD = false;
+    let pressedJ = false;
+    let pressedK = false;
+    let pressedL = false;
+    restartGame();
+  }
+  if (gameState === "playing") {
+    updateBrickCollisions(ball);
+    updateControls(dt);
+    updateArm(dt);
+    handleBallBoundaries(ball);
+    updateBall(ball, dt);
+    collisionBallPaddle(ball);
+  }
   drawArm();
   drawBall(ball);
   drawBricks();
   //limitBallSpeed(ball, maxSpeed);
   requestAnimationFrame(gameloop);
 }
+function restartGame() {
+  generateBricks(10, 5);
+  ball.x = shoulder.x;
+  ball.y = 300;
+  ball.vx = 0;
+  ball.vy = 0;
+  gameState = "playing";
+  shoulder.angle = radians(45);
+  elbow.angle = radians(-90);
+  wrist.angle = 0;
+  let pressedA = false;
+  let pressedS = false;
+  let pressedD = false;
+  let pressedJ = false;
+  let pressedK = false;
+  let pressedL = false;
+}
+
 function limitBallSpeed(ball, maxSpeed) {
   const totalSpeed = Math.hypot(ball.vx, ball.vy);
   if (totalSpeed > maxSpeed) {
@@ -285,21 +334,31 @@ function drawArm() {
   drawJoints();
 }
 
-function updateControls() {
-  const rotationSpeed = Math.PI;
+function updateControls(dt) {
+  updateJointControls(shoulder, pressedL - pressedA, dt);
+  updateJointControls(elbow, pressedK - pressedS, dt);
+  updateJointControls(wrist, pressedJ - pressedD, dt);
+}
 
-  // if (pressedA && pressedL) {
-  //   shoulder.angularVelocity = 0;
-  // } else if (pressedA === true) {
-  //   shoulder.angularVelocity = -rotationSpeed;
-  // } else if (pressedL === true) {
-  //   shoulder.angularVelocity = +rotationSpeed;
-  // } else {
-  //   shoulder.angularVelocity = 0;
-  // }
-  shoulder.angularVelocity = rotationSpeed * (pressedL - pressedA);
-  elbow.angularVelocity = rotationSpeed * (pressedK - pressedS);
-  wrist.angularVelocity = rotationSpeed * (pressedJ - pressedD);
+function updateJointControls(joint, direction, dt) {
+  if (direction !== 0) {
+    joint.angularVelocity += joint.angularAcceleration * dt * direction;
+  } else if (joint.angularVelocity > 0) {
+    joint.angularVelocity = Math.max(
+      0,
+      joint.angularVelocity - joint.angularDeceleration * dt,
+    );
+  } else if (joint.angularVelocity < 0) {
+    joint.angularVelocity = Math.min(
+      0,
+      joint.angularVelocity + joint.angularDeceleration * dt,
+    );
+  }
+
+  joint.angularVelocity = Math.max(
+    -joint.maxAngularVelocity,
+    Math.min(joint.angularVelocity, joint.maxAngularVelocity),
+  );
 }
 
 let pressedA = false;
@@ -407,6 +466,7 @@ function collisionBallPaddle(ball) {
   let nx, ny;
   const displacementVectorX = ball.x - closestX;
   const displacementVectorY = ball.y - closestY;
+  const restitution = 0.4;
   if (distance === 0) {
     const newDistance = Math.hypot(abX, abY);
     nx = -abY / newDistance;
@@ -428,7 +488,7 @@ function collisionBallPaddle(ball) {
     if (collisionDot < 0) {
       //SLAp
 
-      const j = -(1 + 1) * collisionDot;
+      const j = -(1 + restitution) * collisionDot;
       ball.vx += j * nx;
       ball.vy += j * ny;
     }
@@ -445,7 +505,8 @@ function collisionBallPaddle(ball) {
 function createBall({ x, y, radius, vx = 0, vy = 0, z = 0 }) {
   return { x, y, radius, vx, vy, z };
 }
-
+let attemptCounter = 1;
+attempt.innerText = attemptCounter;
 function handleBallBoundaries(ball) {
   if (ball.x + ball.radius > canvas.width) {
     ball.x = canvas.width - ball.radius;
@@ -462,9 +523,11 @@ function handleBallBoundaries(ball) {
   if (ball.y + ball.radius > canvas.height) {
     //lose life, if(life === 0) { game over}
     ball.x = shoulder.x;
-    ball.y = 450;
+    ball.y = 300;
     ball.vx = 0;
     ball.vy = 0;
+    attemptCounter += 1;
+    attempt.innerText = attemptCounter;
   }
 }
 function drawBall(ball) {
@@ -473,11 +536,23 @@ function drawBall(ball) {
   ctx.closePath();
   ctx.fill();
 }
+
 function updateBall(ball, dt) {
-  // const x0 = ball.x;
-  // const y0 = ball.y;
+  const y0 = ball.y;
+  const vy0 = ball.vy;
+  const airResistance = 0.8;
+
+  const ax = -airResistance * ball.vx;
+  const ay = gravity - airResistance * ball.vy;
+
+  ball.vx += ax * dt;
+  ball.vy += ay * dt;
 
   ball.x += ball.vx * dt;
   ball.y += ball.vy * dt;
+  //akjball.y = y0 + vy0 * dt + 0.5 * gravity * dt ** 2;
 }
+
+// INFO
+
 requestAnimationFrame(gameloop);

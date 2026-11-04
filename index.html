@@ -1,16 +1,26 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mega SLAP</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css" />
     <script src="script.js" defer></script>
-</head>
+  </head>
 
-<body>
-    <canvas id="game"></canvas>
-</body>
-
+  <body>
+    <h1>MEGASLAP</h1>
+    <div class="container">
+      <div class="info">
+        <p>D ← Wrist (paddle) → J</p>
+        <p>S ← Elbow → K</p>
+        <p>A ← Shoulder → L</p>
+      </div>
+      <canvas id="game"></canvas>
+      <div class="game-info">
+        <p>Attempt: <span id="attempt"></span></p>
+        <p>Record: <span id="record"></span></p>
+      </div>
+    </div>
+  </body>
 </html>
