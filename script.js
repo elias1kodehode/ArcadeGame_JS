@@ -55,16 +55,122 @@ const paddleLeft = {
   x: 0,
   y: 0,
 };
+const bricks = [];
 
+function createBrick({ x, y, width, height, health = 1, score = 100 }) {
+  return { x, y, width, height, health, score };
+}
+function drawBrick(brick) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.fillStyle = "blue";
+  ctx.fillRect(brick.x, brick.y, brick.width, brick.height);
+  ctx.closePath();
+
+  ctx.restore();
+}
+
+function generateBricks(columns, rows) {
+  const horizontalGap = 10;
+  const verticalGap = 10;
+  const margin = 20;
+  const brickWidth =
+    (canvas.width - margin * 2 - (columns - 1) * horizontalGap) / columns;
+
+  let brickPosX = margin;
+
+  const brickHeight = 20;
+  let brickPosY = 100;
+  for (let i = 0; i < rows; i++) {
+    for (let j = 0; j < columns; j++) {
+      bricks.push(
+        createBrick({
+          x: brickPosX,
+          y: brickPosY,
+          width: brickWidth,
+          height: brickHeight,
+        }),
+      );
+      brickPosX += brickWidth + horizontalGap;
+    }
+    brickPosX = margin;
+    brickPosY += brickHeight + verticalGap;
+  }
+}
+
+function checkCircleBrickCollision(brick, ball) {
+  const closestX = Math.max(brick.x, Math.min(ball.x, brick.x + brick.width));
+  const closestY = Math.max(brick.y, Math.min(ball.y, brick.y + brick.height));
+  const distance = Math.hypot(closestX - ball.x, closestY - ball.y);
+
+  if (distance <= ball.radius && distance !== 0) {
+    return {
+      nx: (ball.x - closestX) / distance,
+      ny: (ball.y - closestY) / distance,
+      penetration: ball.radius - distance,
+    };
+  } else if (distance === 0) {
+    const left = ball.x - brick.x;
+    const right = brick.x + brick.width - ball.x;
+    const top = ball.y - brick.y;
+    const bottom = brick.y + brick.height - ball.y;
+    const closestEdge = Math.min(left, right, top, bottom);
+    if (closestEdge === left) {
+      return { nx: -1, ny: 0, penetration: ball.radius + closestEdge };
+    } else if (closestEdge === right) {
+      return { nx: 1, ny: 0, penetration: ball.radius + closestEdge };
+    } else if (closestEdge === top) {
+      return { nx: 0, ny: -1, penetration: ball.radius + closestEdge };
+    } else if (closestEdge === bottom) {
+      return { nx: 0, ny: 1, penetration: ball.radius + closestEdge };
+    }
+  } else {
+    return null;
+  }
+}
+function handleBrickBallCollision(ball, brick, collision) {
+  const { nx, ny, penetration } = collision;
+  const dot = ball.vx * nx + ball.vy * ny;
+  const restitution = 1;
+  ball.x += penetration * nx;
+  ball.y += penetration * ny;
+  if (dot < 0) {
+    ball.vx += -(1 + restitution) * dot * nx;
+    ball.vy += -(1 + restitution) * dot * ny;
+    return true;
+  }
+  return false;
+}
+function drawBricks() {
+  for (let brick of bricks) {
+    drawBrick(brick);
+  }
+}
+function updateBrickCollisions(ball) {
+  for (let i = bricks.length - 1; i >= 0; i--) {
+    const collision = checkCircleBrickCollision(bricks[i], ball);
+    if (collision !== null) {
+      if (handleBrickBallCollision(ball, bricks[i], collision)) {
+        if (bricks[i].health === 1) {
+          bricks.splice(i, 1);
+        } else {
+          bricks[i].health--;
+        }
+      }
+    }
+  }
+}
+generateBricks(10, 5);
 let ball = {
-  x: 200,
-  y: 400,
+  x: shoulder.x,
+  y: 500,
   radius: 20,
   vx: 0,
   vy: 0,
 };
 let timestamp = 0;
 let lastTime = 0;
+let maxSpeed = 350;
 function gameloop(timestamp) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   if (!lastTime) {
@@ -75,6 +181,7 @@ function gameloop(timestamp) {
     dt = 0;
   }
   lastTime = timestamp;
+  updateBrickCollisions(ball);
   updateControls();
   updateArm(dt);
   handleBallBoundaries(ball);
@@ -82,10 +189,18 @@ function gameloop(timestamp) {
   collisionBallPaddle(ball);
   drawArm();
   drawBall(ball);
-
+  drawBricks();
+  //limitBallSpeed(ball, maxSpeed);
   requestAnimationFrame(gameloop);
 }
-
+function limitBallSpeed(ball, maxSpeed) {
+  const totalSpeed = Math.hypot(ball.vx, ball.vy);
+  if (totalSpeed > maxSpeed) {
+    const scale = maxSpeed / totalSpeed;
+    ball.vx = maxSpeed * scale;
+    ball.vy = maxSpeed * scale;
+  }
+}
 // Find the end of a limb. angle is in radians.
 function calculateEndpoint(start, length, angle) {
   const x = start.x + length * Math.cos(angle);
@@ -346,8 +461,8 @@ function handleBallBoundaries(ball) {
   }
   if (ball.y + ball.radius > canvas.height) {
     //lose life, if(life === 0) { game over}
-    ball.x = 200;
-    ball.y = 400;
+    ball.x = shoulder.x;
+    ball.y = 450;
     ball.vx = 0;
     ball.vy = 0;
   }
