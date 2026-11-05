@@ -6,8 +6,13 @@ const recordAttempts = document.getElementById("record");
 canvas.height = 720;
 canvas.width = 480;
 const gravity = 100;
-let gameState = "playing";
-let record = Infinity;
+const game = {
+  attempts: 1,
+  record: Number(localStorage.getItem("record") ?? Infinity),
+  elapsedTime: 0,
+  state: "playing",
+};
+
 const arm = {
   overArm: {
     length: 80,
@@ -70,6 +75,13 @@ const paddleLeft = {
   y: 0,
 };
 const bricks = [];
+
+let timer = document.getElementById("timer");
+function showTime() {
+  const minutes = Math.floor(game.elapsedTime / 60);
+  const seconds = Math.floor(game.elapsedTime % 60);
+  timer.innerText = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
 
 function createBrick({ x, y, width, height, health = 1, score = 100 }) {
   return { x, y, width, height, health, score };
@@ -146,15 +158,20 @@ function handleBrickBallCollision(ball, brick, collision) {
   const { nx, ny, penetration } = collision;
   const dot = ball.vx * nx + ball.vy * ny;
   const restitution = 1;
+  const minBrickBounceSpeed = 100;
   ball.x += penetration * nx;
   ball.y += penetration * ny;
   if (dot < 0) {
     ball.vx += -(1 + restitution) * dot * nx;
     ball.vy += -(1 + restitution) * dot * ny;
+    if (ny === -1 && ball.vy > -100) {
+      ball.vy = -minBrickBounceSpeed;
+    }
     return true;
   }
   return false;
 }
+
 function drawBricks() {
   for (let brick of bricks) {
     drawBrick(brick);
@@ -174,14 +191,17 @@ function updateBrickCollisions(ball) {
     }
   }
 }
-generateBricks(1, 1);
-let ball = {
-  x: shoulder.x,
-  y: 200,
+generateBricks(10, 5);
+let ball = createBall({
+  x: canvas.width / 2,
+  y: 300,
   radius: 20,
   vx: 0,
   vy: 0,
-};
+  angle: 0,
+  angularVelocity: 0,
+  trail: [],
+});
 
 let timestamp = 0;
 let lastTime = 0;
@@ -198,10 +218,13 @@ function gameloop(timestamp) {
   }
   lastTime = timestamp;
   if (bricks.length === 0) {
-    gameState = "gameOver";
+    game.state = "gameOver";
   }
-  if (gameState === "gameOver") {
-    alert("Congratulations! You made it in " + attemptCounter + " attempts!");
+  if (game.state === "gameOver") {
+    alert("Congratulations! You made it in " + game.attempts + " attempts!");
+    if (game.attempts < game.record) {
+      game.record = game.attempts;
+    }
     let pressedA = false;
     let pressedS = false;
     let pressedD = false;
@@ -210,7 +233,7 @@ function gameloop(timestamp) {
     let pressedL = false;
     restartGame();
   }
-  if (gameState === "playing") {
+  if (game.state === "playing") {
     updateBrickCollisions(ball);
     updateControls(dt);
     updateArm(dt);
@@ -222,15 +245,20 @@ function gameloop(timestamp) {
   drawBall(ball);
   drawBricks();
   //limitBallSpeed(ball, maxSpeed);
+  game.elapsedTime += dt;
+  showTime();
   requestAnimationFrame(gameloop);
 }
 function restartGame() {
+  game.attempts = 1;
   generateBricks(10, 5);
   ball.x = shoulder.x;
   ball.y = 300;
   ball.vx = 0;
   ball.vy = 0;
-  gameState = "playing";
+  ball.angle = 0;
+  ball.angularVelocity = 0;
+  game.state = "playing";
   shoulder.angle = radians(45);
   elbow.angle = radians(-90);
   wrist.angle = 0;
@@ -240,8 +268,17 @@ function restartGame() {
   let pressedJ = false;
   let pressedK = false;
   let pressedL = false;
+  updateUI();
 }
-
+updateUI();
+function updateUI() {
+  attempt.innerText = game.attempts;
+  if (game.record === Infinity) {
+    recordAttempts.innerText = "Not set";
+  } else {
+    recordAttempts.innerText = game.record;
+  }
+}
 function limitBallSpeed(ball, maxSpeed) {
   const totalSpeed = Math.hypot(ball.vx, ball.vy);
   if (totalSpeed > maxSpeed) {
@@ -475,6 +512,9 @@ function collisionBallPaddle(ball) {
     nx = displacementVectorX / distance;
     ny = displacementVectorY / distance;
   }
+  //friction
+  const tx = -ny;
+  const ty = nx;
   if (distance <= collisionThreshold) {
     const { vx: paddleVx, vy: paddleVy } = calculatePointVelocity({
       x: closestX,
@@ -483,14 +523,37 @@ function collisionBallPaddle(ball) {
 
     const relativeVelocityX = ball.vx - paddleVx;
     const relativeVelocityY = ball.vy - paddleVy;
+    const tangentialVelocity = relativeVelocityX * tx + relativeVelocityY * ty;
+    const slidingVelocity =
+      tangentialVelocity - ball.angularVelocity * ball.radius;
+
+    // !!!!
+    const mass = 1;
+    const frictionCoefficient = 0.3;
+    // !!!!
+
+    const momentOfInertia = 0.5 * mass * ball.radius ** 2;
+
+    let frictionImpulse =
+      -slidingVelocity / (1 / mass + ball.radius ** 2 / momentOfInertia);
 
     const collisionDot = nx * relativeVelocityX + ny * relativeVelocityY;
     if (collisionDot < 0) {
       //SLAp
-
       const j = -(1 + restitution) * collisionDot;
+      const maxFrictionImpulse = Math.abs(frictionCoefficient * j);
+      frictionImpulse = Math.max(
+        -maxFrictionImpulse,
+        Math.min(frictionImpulse, maxFrictionImpulse),
+      );
       ball.vx += j * nx;
       ball.vy += j * ny;
+      ball.angularVelocity += -(
+        (frictionImpulse * ball.radius) /
+        momentOfInertia
+      );
+      ball.vx += (frictionImpulse / mass) * tx;
+      ball.vy += (frictionImpulse / mass) * ty;
     }
     const penetration = collisionThreshold - distance;
     if (penetration > 0) {
@@ -502,11 +565,20 @@ function collisionBallPaddle(ball) {
 
 // BALL
 
-function createBall({ x, y, radius, vx = 0, vy = 0, z = 0 }) {
-  return { x, y, radius, vx, vy, z };
+function createBall({
+  x,
+  y,
+  radius,
+  vx = 0,
+  vy = 0,
+  angle = 0,
+  angularVelocity = 0,
+  trail = [],
+  rotationTail = [],
+}) {
+  return { x, y, radius, vx, vy, angle, angularVelocity, trail, rotationTail };
 }
-let attemptCounter = 1;
-attempt.innerText = attemptCounter;
+attempt.innerText = game.attempts;
 function handleBallBoundaries(ball) {
   if (ball.x + ball.radius > canvas.width) {
     ball.x = canvas.width - ball.radius;
@@ -526,31 +598,91 @@ function handleBallBoundaries(ball) {
     ball.y = 300;
     ball.vx = 0;
     ball.vy = 0;
-    attemptCounter += 1;
-    attempt.innerText = attemptCounter;
+    ball.angle = 0;
+    ball.angularVelocity = 0;
+    game.attempts += 1;
+    attempt.innerText = game.attempts;
   }
 }
 function drawBall(ball) {
+  ctx.save();
   ctx.beginPath();
   ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
   ctx.closePath();
   ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(ball.x, ball.y);
+  ctx.lineTo(
+    ball.x + ball.radius * Math.cos(ball.angle),
+    ball.y + ball.radius * Math.sin(ball.angle),
+  );
+  ctx.strokeStyle = "white";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.restore();
 }
 
+function drawBallTrail(ball) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = "blue";
+  for (let pos of ball.trail) {
+    //   ctx.moveTo(ball.x, ball.y);
+    ctx.lineTo(pos.x, pos.y);
+  }
+
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = "orange";
+  for (let pos of ball.rotationTail) {
+    ctx.lineTo(pos.x, pos.y);
+  }
+
+  ctx.stroke();
+  ctx.restore();
+}
 function updateBall(ball, dt) {
   const y0 = ball.y;
   const vy0 = ball.vy;
   const airResistance = 0.8;
+  const angularDragCoefficient = 0.4;
+  const magnusStrengthCoefficient = 0.03;
+  const angularDragAcceleration = -(
+    angularDragCoefficient * ball.angularVelocity
+  );
+  ball.angularVelocity += angularDragAcceleration * dt;
+  ball.angle += ball.angularVelocity * dt;
+  const magnusAx = -(
+    magnusStrengthCoefficient *
+    ball.angularVelocity *
+    ball.vy
+  );
+  const magnusAy = magnusStrengthCoefficient * ball.angularVelocity * ball.vx;
 
-  const ax = -airResistance * ball.vx;
-  const ay = gravity - airResistance * ball.vy;
+  const ax = -airResistance * ball.vx + magnusAx;
+  const ay = gravity - airResistance * ball.vy + magnusAy;
 
   ball.vx += ax * dt;
   ball.vy += ay * dt;
 
   ball.x += ball.vx * dt;
   ball.y += ball.vy * dt;
-  //akjball.y = y0 + vy0 * dt + 0.5 * gravity * dt ** 2;
+
+  ball.trail.push({ x: ball.x, y: ball.y });
+  if (ball.trail.length > 300) {
+    ball.trail.shift();
+  }
+  ball.rotationTail.push({
+    x: ball.x + ball.radius * Math.cos(ball.angle),
+    y: ball.y + ball.radius * Math.sin(ball.angle),
+  });
+  if (ball.rotationTail.length > 200) {
+    ball.rotationTail.shift();
+  }
+  drawBallTrail(ball);
 }
 
 // INFO
