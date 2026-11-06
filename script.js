@@ -503,32 +503,32 @@ let pressedK = false;
 let pressedL = false;
 
 document.addEventListener("keydown", (event) => {
-  if (event.key === "a") {
+  if (event.key === "a" || event.key === "A") {
     console.log(shoulder.angle);
     pressedA = true;
   }
 
-  if (event.key === "s") {
+  if (event.key === "s" || event.key === "S") {
     console.log(elbow.angle);
     pressedS = true;
   }
 
-  if (event.key === "d") {
+  if (event.key === "d" || event.key === "D") {
     console.log(wrist.angle);
     pressedD = true;
   }
 
-  if (event.key === "l") {
+  if (event.key === "l" || event.key === "L") {
     console.log(shoulder.angle);
     pressedL = true;
   }
 
-  if (event.key === "k") {
+  if (event.key === "k" || event.key === "K") {
     console.log(elbow.angle);
     pressedK = true;
   }
 
-  if (event.key === "j") {
+  if (event.key === "j" || event.key === "J") {
     console.log(wrist.angle);
     pressedJ = true;
   }
@@ -543,32 +543,32 @@ document.addEventListener("keydown", (event) => {
   }
 });
 document.addEventListener("keyup", (event) => {
-  if (event.key === "a") {
+  if (event.key === "a" || event.key === "A") {
     console.log(shoulder.angle);
     pressedA = false;
   }
 
-  if (event.key === "s") {
+  if (event.key === "s" || event.key === "S") {
     console.log(elbow.angle);
     pressedS = false;
   }
 
-  if (event.key === "d") {
+  if (event.key === "d" || event.key === "D") {
     console.log(wrist.angle);
     pressedD = false;
   }
 
-  if (event.key === "l") {
+  if (event.key === "l" || event.key === "L") {
     console.log(shoulder.angle);
     pressedL = false;
   }
 
-  if (event.key === "k") {
+  if (event.key === "k" || event.key === "K") {
     console.log(elbow.angle);
     pressedK = false;
   }
 
-  if (event.key === "j") {
+  if (event.key === "j" || event.key === "J") {
     console.log(wrist.angle);
     pressedJ = false;
   }
