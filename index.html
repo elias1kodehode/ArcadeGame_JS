@@ -1,34 +1,49 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Mega SLAP</title>
-    <link rel="stylesheet" href="style.css" />
-    <script src="script.js" defer></script>
-  </head>
 
-  <body>
-    <h1>MEGASLAP</h1>
-    <div class="container">
-      <div class="info">
-        <p>D ← Wrist (paddle) → J</p>
-        <p>S ← Elbow → K</p>
-        <p>A ← Shoulder → L</p>
-      </div>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mega SLAP</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="script.js" defer></script>
+</head>
+
+<body>
+  <h1>MEGASLAP</h1>
+  <div class="container">
+    <div class="info">
+      <p>D ← Wrist (paddle) → J</p>
+      <p>S ← Elbow → K</p>
+      <p>A ← Shoulder → L</p>
+    </div>
+    <div class="gamecontainer">
       <canvas id="game"></canvas>
-      <div class="game-info">
-        <div class="current-info">
-          <h3>Current:</h3>
-          <p>Attempt: <span id="attempt"></span></p>
-          <p>Time: <span id="timer"></span></p>
+      <div id="game-over-overlay">
+        <div id="game-over-top">
+          <h1>VICTORY!</h1>
         </div>
-        <div class="records">
-          <h3>Records:</h3>
-          <p>Attempt: <span id="record-attempt"></span></p>
-          <p>Time: <span id="record-time"></span></p>
+        <div id="game-over-middle">
+
+        </div>
+        <div id="game-over-bottom">
+          <button id="restart-button">Restart</button>
         </div>
       </div>
     </div>
-  </body>
+    <div class="game-info">
+      <div class="current-info">
+        <h3>Current:</h3>
+        <p>Attempt: <span id="attempt"></span></p>
+        <p>Time: <span id="timer"></span></p>
+      </div>
+      <div class="records">
+        <h3>Records:</h3>
+        <p>Attempt: <span id="record-attempt"></span></p>
+        <p>Time: <span id="record-time"></span></p>
+      </div>
+    </div>
+  </div>
+</body>
+
 </html>

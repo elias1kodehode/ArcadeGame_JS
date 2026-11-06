@@ -2,7 +2,7 @@ const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 const attempt = document.getElementById("attempt");
 const recordAttempts = document.getElementById("record-attempt");
-const recordTime = document.getElementById("record-time");
+const recordTimer = document.getElementById("record-time");
 
 canvas.height = 720;
 canvas.width = 480;
@@ -84,16 +84,25 @@ function showTime() {
   const seconds = Math.floor(game.elapsedTime % 60);
   timer.innerText = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
+function formatTime(time) {
+  const minutes = Math.floor(time / 60);
+  const seconds = Math.floor(time % 60);
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
 
 function createBrick({ x, y, width, height, health = 1, score = 100 }) {
   return { x, y, width, height, health, score };
 }
 function drawBrick(brick) {
   ctx.save();
-  ctx.beginPath();
-  ctx.fillStyle = "blue";
+  ctx.fillStyle = "#2665C6";
   ctx.fillRect(brick.x, brick.y, brick.width, brick.height);
-  ctx.closePath();
+  ctx.fillStyle = "#A4D9FF";
+  ctx.fillRect(brick.x + 3, brick.y + 3, brick.width - 6, 2);
+
+  ctx.strokeStyle = "#143E84";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(brick.x, brick.y, brick.width, brick.height);
 
   ctx.restore();
 }
@@ -219,15 +228,14 @@ function gameloop(timestamp) {
     dt = 0;
   }
   lastTime = timestamp;
-  if (bricks.length === 0) {
+  if (bricks.length === 0 && game.state === "playing") {
     game.state = "gameOver";
+    updateRecords();
+    updateUI();
   }
   if (game.state === "gameOver") {
-    alert("Congratulations! You made it in " + game.attempts + " attempts!");
-    if (game.attempts < game.record) {
-      game.record = game.attempts;
-    }
-    restartGame();
+    updateUI();
+    // restartGame();
   }
   if (game.state === "playing") {
     updateBrickCollisions(ball);
@@ -236,17 +244,19 @@ function gameloop(timestamp) {
     handleBallBoundaries(ball);
     updateBall(ball, dt);
     collisionBallPaddle(ball);
+    game.elapsedTime += dt;
   }
   drawArm();
   drawBall(ball);
   drawBricks();
   //limitBallSpeed(ball, maxSpeed);
-  game.elapsedTime += dt;
+
   showTime();
   requestAnimationFrame(gameloop);
 }
 function restartGame() {
   game.attempts = 1;
+  game.elapsedTime = 0;
   generateBricks(10, 5);
   ball.x = shoulder.x;
   ball.y = 300;
@@ -267,25 +277,36 @@ function restartGame() {
   updateUI();
 }
 function updateRecords() {
-  if (game.attempts < game.record) {
+  if (
+    game.attempts < game.record ||
+    (game.attempts === game.record && game.elapsedTime < game.recordTime)
+  ) {
     game.record = game.attempts;
     game.recordTime = game.elapsedTime;
-  }
-  if (game.attempts === game.record && game.elapsedTime < game.recordTime) {
-    game.record = game.attempts;
-    game.recordTime = game.elapsedTime;
+    localStorage.setItem("record", game.record);
+    localStorage.setItem("recordTime", game.recordTime);
   }
 }
 
 updateUI();
 function updateUI() {
+  const overlay = document.getElementById("game-over-overlay");
+  overlay.classList.toggle("visible", game.state === "gameOver");
   attempt.innerText = game.attempts;
   if (game.record === Infinity) {
     recordAttempts.innerText = "Not set";
   } else {
     recordAttempts.innerText = game.record;
   }
+  if (game.recordTime === 0) {
+    recordTimer.innerText = "Not set";
+  } else {
+    recordTimer.innerText = formatTime(game.recordTime);
+  }
 }
+const restartButton = document.getElementById("restart-button");
+restartButton.addEventListener("click", restartGame);
+
 function limitBallSpeed(ball, maxSpeed) {
   const totalSpeed = Math.hypot(ball.vx, ball.vy);
   if (totalSpeed > maxSpeed) {
@@ -341,41 +362,99 @@ function drawArmSegment(start, end, thickness) {
   const px = -ny;
   const py = nx;
   const halfThickness = thickness / 2;
-
+  ctx.save();
   ctx.beginPath();
   ctx.moveTo(start.x + px * halfThickness, start.y + py * halfThickness);
   ctx.lineTo(end.x + px * halfThickness, end.y + py * halfThickness);
   ctx.lineTo(end.x + -px * halfThickness, end.y + -py * halfThickness);
   ctx.lineTo(start.x + -px * halfThickness, start.y + -py * halfThickness);
   ctx.closePath();
+  ctx.fillStyle = "#2F3744";
+  ctx.strokeStyle = "#7E8A9A";
+  ctx.lineJoin = "round";
   ctx.fill();
   ctx.stroke();
+  ctx.restore();
 }
 
 function radians(degrees) {
   return degrees * (Math.PI / 180);
 }
 function drawJoints() {
+  ctx.save();
+  ctx.fillStyle = "#374355";
+  ctx.strokeStyle = "#91A4BC";
+  ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.arc(shoulder.x, shoulder.y, shoulder.radius, 0, Math.PI * 2);
-  ctx.closePath();
+
+  ctx.stroke();
+  ctx.fill();
+  drawJoint(shoulder.x, shoulder.y, 8, "#182536", "#b1c2d5", 1);
+  ctx.beginPath();
+
+  ctx.stroke();
+  drawJoint(shoulder.x, shoulder.y, shoulder.radius, "#374355", "#91A4BC", 2);
   ctx.fill();
   ctx.beginPath();
-  ctx.arc(elbow.x, elbow.y, elbow.radius, 0, Math.PI * 2);
-  ctx.closePath();
+
+  ctx.stroke();
   ctx.fill();
   ctx.beginPath();
-  ctx.arc(wrist.x, wrist.y, wrist.radius, 0, Math.PI * 2);
-  ctx.closePath();
+  drawJoint(hand.x, hand.y, 6, "#374355", "#91A4BC", 2);
+  ctx.stroke();
   ctx.fill();
+  ctx.restore();
+}
+function drawJoint(x, y, radius, fillStyle, strokeStyle, lineWidth) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.fillStyle = fillStyle;
+  ctx.strokeStyle = strokeStyle;
+  ctx.lineWidth = lineWidth;
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+function drawJointIndicator(joint, orientation) {
+  ctx.save();
+  let startAngle;
+  if (joint.angularVelocity === 0) {
+    ctx.restore();
+    return;
+  } else if (Math.sign(joint.angularVelocity) > 0) {
+    startAngle = orientation;
+  } else if (Math.sign(joint.angularVelocity) < 0) {
+    startAngle = orientation + Math.PI;
+  }
+  const endAngle = startAngle + Math.PI;
+  ctx.beginPath();
+  ctx.strokeStyle = "#53B8FF";
+  ctx.lineWidth = joint.radius * 0.3;
+  ctx.lineCap = "round";
+  const speedRatio = Math.abs(joint.angularVelocity) / joint.maxAngularVelocity;
+
+  ctx.globalAlpha = 0.15 + (0.8 - 0.15) * speedRatio;
+  ctx.arc(joint.x, joint.y, joint.radius * 0.75, startAngle, endAngle);
+  ctx.stroke();
+  ctx.restore();
 }
 function drawArm() {
   drawArmSegment(shoulder, elbow, arm.overArm.thickness);
+  drawJoint(shoulder.x, shoulder.y, shoulder.radius, "#374355", "#91A4BC", 2);
+  drawJointIndicator(shoulder, shoulder.angle);
+  drawJoint(shoulder.x, shoulder.y, 8, "#182536", "#b1c2d5", 1);
   drawArmSegment(elbow, wrist, arm.underArm.thickness);
+  drawJoint(elbow.x, elbow.y, elbow.radius, "#374355", "#91A4BC", 2);
+  drawJointIndicator(elbow, shoulder.angle + elbow.angle);
+  drawJoint(elbow.x, elbow.y, 7, "#182536", "#b1c2d5", 1);
+  //drawArmSegment(hand, paddleRight, arm.paddle.thickness);
   drawArmSegment(wrist, hand, arm.hand.thickness);
-  drawArmSegment(hand, paddleRight, arm.paddle.thickness);
-  drawArmSegment(hand, paddleLeft, arm.paddle.thickness);
-  drawJoints();
+  drawJoint(wrist.x, wrist.y, wrist.radius, "#374355", "#91A4BC", 2);
+  drawJointIndicator(wrist, shoulder.angle + elbow.angle + wrist.angle);
+  drawJoint(wrist.x, wrist.y, 6, "#182536", "#b1c2d5", 1);
+  drawArmSegment(paddleRight, paddleLeft, arm.paddle.thickness);
+  drawJoint(hand.x, hand.y, 6, "#374355", "#91A4BC", 2);
 }
 
 function updateControls(dt) {
@@ -607,48 +686,94 @@ function handleBallBoundaries(ball) {
     ball.vy = 0;
     ball.angle = 0;
     ball.angularVelocity = 0;
+    ball.trail.length = 0;
+    ball.rotationTail.length = 0;
     game.attempts += 1;
     attempt.innerText = game.attempts;
   }
 }
 function drawBall(ball) {
   ctx.save();
+
+  const gradient = ctx.createRadialGradient(
+    ball.x - 0.3 * ball.radius,
+    ball.y - 0.3 * ball.radius,
+    0,
+    ball.x,
+    ball.y,
+    ball.radius,
+  );
+  gradient.addColorStop(0, "#A2B9D3");
+  gradient.addColorStop(0.3, "#53667F");
+  gradient.addColorStop(0.7, "#273549");
+  gradient.addColorStop(1, "#101827");
+  ctx.fillStyle = gradient;
   ctx.beginPath();
   ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
   ctx.closePath();
   ctx.fill();
   ctx.beginPath();
-  ctx.moveTo(ball.x, ball.y);
+  ctx.moveTo(
+    ball.x - ball.radius * Math.cos(ball.angle),
+    ball.y - ball.radius * Math.sin(ball.angle),
+  );
   ctx.lineTo(
     ball.x + ball.radius * Math.cos(ball.angle),
     ball.y + ball.radius * Math.sin(ball.angle),
   );
   ctx.strokeStyle = "white";
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 1;
   ctx.stroke();
   ctx.restore();
 }
 
 function drawBallTrail(ball) {
   ctx.save();
-  ctx.beginPath();
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = "blue";
-  for (let pos of ball.trail) {
-    //   ctx.moveTo(ball.x, ball.y);
-    ctx.lineTo(pos.x, pos.y);
+  ctx.lineCap = "round";
+  for (let i = 0; i < ball.trail.length - 1; i++) {
+    const t = i / (ball.trail.length - 1);
+    const lineWidth = 0.5 + 7 * t;
+    const alpha = 0.1 + 0.8 * t;
+
+    ctx.beginPath();
+    ctx.moveTo(ball.trail[i].x, ball.trail[i].y);
+    ctx.lineTo(ball.trail[i + 1].x, ball.trail[i + 1].y);
+    ctx.lineWidth = lineWidth;
+    ctx.strokeStyle = "#65758B";
+    ctx.globalAlpha = alpha;
+    ctx.stroke();
+  }
+  ctx.restore();
+  ctx.save();
+  for (let i = 0; i < ball.trail.length - 1; i++) {
+    const t = i / (ball.trail.length - 1);
+    const lineWidth = 0.5 + 2 * t;
+    const alpha = 0.1 + 0.5 * t;
+
+    ctx.lineWidth = lineWidth;
+    ctx.strokeStyle = "#4F87B8";
+    ctx.globalAlpha = alpha;
+    ctx.beginPath();
+    ctx.moveTo(ball.rotationTail[i].x, ball.rotationTail[i].y);
+    ctx.lineTo(ball.rotationTail[i + 1].x, ball.rotationTail[i + 1].y);
+
+    ctx.lineWidth = lineWidth;
+    ctx.strokeStyle = "#D18B44";
+    ctx.globalAlpha = alpha;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(ball.rotationTail[i].x2, ball.rotationTail[i].y2);
+    ctx.lineTo(ball.rotationTail[i + 1].x2, ball.rotationTail[i + 1].y2);
+    ctx.stroke();
   }
 
-  ctx.stroke();
+  // ctx.beginPath();
+  // ctx.lineWidth = 1;
+  // ctx.strokeStyle = "orange";
+  // for (let pos of ball.rotationTail) {
+  //   ctx.lineTo(pos.x, pos.y);
+  // }
 
-  ctx.beginPath();
-  ctx.lineWidth = 1;
-  ctx.strokeStyle = "orange";
-  for (let pos of ball.rotationTail) {
-    ctx.lineTo(pos.x, pos.y);
-  }
-
-  ctx.stroke();
   ctx.restore();
 }
 function updateBall(ball, dt) {
@@ -679,14 +804,16 @@ function updateBall(ball, dt) {
   ball.y += ball.vy * dt;
 
   ball.trail.push({ x: ball.x, y: ball.y });
-  if (ball.trail.length > 300) {
+  if (ball.trail.length > 60) {
     ball.trail.shift();
   }
   ball.rotationTail.push({
     x: ball.x + ball.radius * Math.cos(ball.angle),
     y: ball.y + ball.radius * Math.sin(ball.angle),
+    x2: ball.x - ball.radius * Math.cos(ball.angle),
+    y2: ball.y - ball.radius * Math.sin(ball.angle),
   });
-  if (ball.rotationTail.length > 200) {
+  if (ball.rotationTail.length > 60) {
     ball.rotationTail.shift();
   }
   drawBallTrail(ball);

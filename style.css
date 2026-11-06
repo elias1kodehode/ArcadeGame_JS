@@ -1,11 +1,213 @@
-canvas {
-  border: 1px solid black;
+:root {
+  --background: #101827;
+  --text: #f1f5ff;
+  --accent: #437cdb;
+  --border: #8ea6c9;
 }
-.container {
-  justify-content: center;
-  display: flex;
-  gap: 25px;
+
+* {
+  box-sizing: border-box;
 }
-h1 {
+
+body {
+  margin: 0;
+  padding: 12px 20px 30px;
+  min-height: 100vh;
+  background-color: var(--background);
+  color: var(--text);
+  font-family: "Segoe UI", Arial, sans-serif;
+}
+
+/* MAIN TITLE */
+
+body > h1 {
   text-align: center;
+  font-size: 2.5rem;
+  letter-spacing: 5px;
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+/* MAIN GAME LAYOUT */
+
+.container {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: start;
+  gap: 30px;
+
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+/* LEFT: CONTROLS */
+
+.info {
+  justify-self: end;
+  padding-top: 4px;
+  font-size: 1rem;
+  white-space: nowrap;
+}
+
+.info p {
+  margin: 0 0 8px;
+}
+
+/* CENTER: GAME */
+
+.gamecontainer {
+  position: relative;
+  justify-self: center;
+  max-width: 100%;
+}
+
+#game {
+  display: block;
+  max-width: 100%;
+  height: auto;
+
+  background-color: #f5f8fc;
+  border: 2px solid var(--border);
+  border-radius: 6px;
+}
+
+/* RIGHT: GAME STATISTICS */
+
+.game-info {
+  justify-self: start;
+  padding-top: 4px;
+  font-size: 1rem;
+}
+#game {
+  background-color: #dce8f4;
+}
+.game-info h3 {
+  font-size: 1.2rem;
+  margin: 0 0 5px;
+}
+
+.game-info p {
+  margin: 0 0 6px;
+}
+
+.records {
+  margin-top: 18px;
+}
+
+/* GAME OVER OVERLAY */
+
+#game-over-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+
+  text-align: center;
+  background: rgba(15, 23, 42, 0.78);
+  backdrop-filter: blur(3px);
+  border-radius: 6px;
+}
+
+/* Use if toggling overlay with classList */
+#game-over-overlay.visible {
+  display: flex;
+}
+
+/* VICTORY HEADING */
+
+#game-over-top h1 {
+  font-size: 3rem;
+  letter-spacing: 4px;
+  color: #f2bc60;
+  margin: 0;
+}
+
+#game-over-middle {
+  font-size: 1.2rem;
+  color: #d1deef;
+}
+
+#game-over-middle:empty {
+  display: none;
+}
+
+/* RESTART BUTTON */
+
+#restart-button {
+  padding: 14px 36px;
+  background-color: var(--accent);
+  color: white;
+
+  border: none;
+  border-radius: 8px;
+
+  font-family: inherit;
+  font-size: 1.1rem;
+  font-weight: 700;
+
+  cursor: pointer;
+  transition:
+    background-color 0.2s,
+    transform 0.2s;
+}
+
+#restart-button:hover {
+  background-color: #6296eb;
+  transform: translateY(-2px);
+}
+
+#restart-button:active {
+  transform: translateY(0);
+}
+
+#restart-button:focus-visible {
+  outline: 3px solid #f2bc60;
+  outline-offset: 4px;
+}
+
+/* RESPONSIVE LAYOUT */
+
+@media (max-width: 900px) {
+  body {
+    padding: 12px;
+  }
+
+  body > h1 {
+    font-size: 2rem;
+    letter-spacing: 3px;
+  }
+
+  .container {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: 20px;
+  }
+
+  .gamecontainer {
+    grid-row: 1;
+  }
+
+  .info,
+  .game-info {
+    justify-self: center;
+    text-align: center;
+    white-space: normal;
+  }
+
+  .game-info {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 24px;
+  }
+
+  .records {
+    margin-top: 0;
+  }
 }
