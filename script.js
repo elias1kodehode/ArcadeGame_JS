@@ -1,7 +1,8 @@
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 const attempt = document.getElementById("attempt");
-const recordAttempts = document.getElementById("record");
+const recordAttempts = document.getElementById("record-attempt");
+const recordTime = document.getElementById("record-time");
 
 canvas.height = 720;
 canvas.width = 480;
@@ -9,6 +10,7 @@ const gravity = 100;
 const game = {
   attempts: 1,
   record: Number(localStorage.getItem("record") ?? Infinity),
+  recordTime: Number(localStorage.getItem("recordTime") ?? 0),
   elapsedTime: 0,
   state: "playing",
 };
@@ -225,12 +227,6 @@ function gameloop(timestamp) {
     if (game.attempts < game.record) {
       game.record = game.attempts;
     }
-    let pressedA = false;
-    let pressedS = false;
-    let pressedD = false;
-    let pressedJ = false;
-    let pressedK = false;
-    let pressedL = false;
     restartGame();
   }
   if (game.state === "playing") {
@@ -270,6 +266,17 @@ function restartGame() {
   let pressedL = false;
   updateUI();
 }
+function updateRecords() {
+  if (game.attempts < game.record) {
+    game.record = game.attempts;
+    game.recordTime = game.elapsedTime;
+  }
+  if (game.attempts === game.record && game.elapsedTime < game.recordTime) {
+    game.record = game.attempts;
+    game.recordTime = game.elapsedTime;
+  }
+}
+
 updateUI();
 function updateUI() {
   attempt.innerText = game.attempts;
