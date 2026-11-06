@@ -12,7 +12,7 @@ const game = {
   record: Number(localStorage.getItem("record") ?? Infinity),
   recordTime: Number(localStorage.getItem("recordTime") ?? 0),
   elapsedTime: 0,
-  state: "playing",
+  state: "start",
 };
 
 const arm = {
@@ -77,7 +77,7 @@ const paddleLeft = {
   y: 0,
 };
 const bricks = [];
-
+updateArm(1);
 let timer = document.getElementById("timer");
 function showTime() {
   const minutes = Math.floor(game.elapsedTime / 60);
@@ -255,6 +255,7 @@ function gameloop(timestamp) {
   requestAnimationFrame(gameloop);
 }
 function restartGame() {
+  bricks.length = 0;
   game.attempts = 1;
   game.elapsedTime = 0;
   generateBricks(10, 5);
@@ -292,6 +293,10 @@ updateUI();
 function updateUI() {
   const overlay = document.getElementById("game-over-overlay");
   overlay.classList.toggle("visible", game.state === "gameOver");
+  const startOverlay = document.getElementById("game-start-overlay");
+  startOverlay.classList.toggle("visible", game.state === "start");
+  const pauseOverlay = document.getElementById("game-pause-overlay");
+  pauseOverlay.classList.toggle("visible", game.state === "pause");
   attempt.innerText = game.attempts;
   if (game.record === Infinity) {
     recordAttempts.innerText = "Not set";
@@ -306,7 +311,13 @@ function updateUI() {
 }
 const restartButton = document.getElementById("restart-button");
 restartButton.addEventListener("click", restartGame);
-
+const restartButtonFromPause = document.getElementById("restart-from-pause");
+restartButtonFromPause.addEventListener("click", restartGame);
+const startButton = document.getElementById("startbutton");
+startButton.addEventListener("click", () => {
+  game.state = "playing";
+  updateUI();
+});
 function limitBallSpeed(ball, maxSpeed) {
   const totalSpeed = Math.hypot(ball.vx, ball.vy);
   if (totalSpeed > maxSpeed) {
@@ -520,6 +531,15 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "j") {
     console.log(wrist.angle);
     pressedJ = true;
+  }
+  if (event.key === "Escape") {
+    if (game.state !== "pause") {
+      game.state = "pause";
+      updateUI();
+    } else {
+      game.state = "playing";
+      updateUI();
+    }
   }
 });
 document.addEventListener("keyup", (event) => {

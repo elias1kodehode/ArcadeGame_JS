@@ -97,7 +97,9 @@ body > h1 {
 
 /* GAME OVER OVERLAY */
 
-#game-over-overlay {
+#game-over-overlay,
+#game-start-overlay,
+#game-pause-overlay {
   position: absolute;
   inset: 0;
   z-index: 10;
@@ -115,13 +117,16 @@ body > h1 {
 }
 
 /* Use if toggling overlay with classList */
-#game-over-overlay.visible {
+#game-over-overlay.visible,
+#game-start-overlay.visible,
+#game-pause-overlay.visible {
   display: flex;
 }
 
 /* VICTORY HEADING */
 
-#game-over-top h1 {
+#game-over-top h1,
+h2 {
   font-size: 3rem;
   letter-spacing: 4px;
   color: #f2bc60;
@@ -139,7 +144,9 @@ body > h1 {
 
 /* RESTART BUTTON */
 
-#restart-button {
+#restart-button,
+#restart-from-pause,
+#startbutton {
   padding: 14px 36px;
   background-color: var(--accent);
   color: white;
@@ -157,16 +164,22 @@ body > h1 {
     transform 0.2s;
 }
 
-#restart-button:hover {
+#restart-button:hover,
+#restart-from-pause:hover,
+#startbutton:hover {
   background-color: #6296eb;
   transform: translateY(-2px);
 }
 
-#restart-button:active {
+#restart-button:active,
+#restart-from-pause:active,
+#startbutton:active {
   transform: translateY(0);
 }
 
-#restart-button:focus-visible {
+#restart-button:focus-visible,
+#restart-from-pause:focus-visible,
+#startbutton:focus-visible {
   outline: 3px solid #f2bc60;
   outline-offset: 4px;
 }
